@@ -1,16 +1,13 @@
-name: Build and Test
+name: Post Test Results to ServiceNow
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  maven-build:
-    name: Build and Test with Maven
+  run-tests:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,19 +15,27 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '17' # Change as needed
-          distribution: 'temurin'
+          java-version: '11'
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      - name: Run tests and generate results
+        run: |
+          mkdir -p test-results
+          mvn test | tee test-results/results.log
 
-      - name: Build with Maven
-        run: mvn clean install
-
-      - name: Run tests with Maven
-        run: mvn test
+      - name: Parse test results and send to ServiceNow
+        run: |
+          # Extract test results (simplified example)
+          PASS_COUNT=$(grep -o 'Tests run: [0-9]*, Failures: 0' test-results/results.log | wc -l)
+          FAIL_COUNT=$(grep -o 'Failures: [1-9]*' test-results/results.log | wc -l)
+          
+          # Post results to ServiceNow
+          curl --request POST \
+          --url https://<your_instance>.service-now.com/api/now/table/java_test_results \
+          --header "Authorization: Bearer ${{ secrets.SERVICENOW_TOKEN }}" \
+          --header "Content-Type: application/json" \
+          --data '{
+            "testName": "JUnit Tests",
+            "status": "'"$([ "$FAIL_COUNT" -eq 0 ] && echo 'Pass' || echo 'Fail')"'", 
+            "executionTime": "5 minutes", 
+            "details": "'"$(cat test-results/results.log)"'"
+          }'
