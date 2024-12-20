@@ -53,7 +53,7 @@ jobs:
           --header "Content-Type: application/json" \
           --data '{
             "testName": "JUnit Tests",
-            "status": "'"$([ "$FAIL_COUNT" -eq 0 ] && echo 'Pass' || echo 'Fail')"'", 
+            "status": `"$([ "$FAIL_COUNT" -eq 0 ] && echo 'Pass' || echo 'Fail')"`, 
             "executionTime": "5 minutes", 
             "details": "'"$(cat test-results/results.log)"'"
           }'
